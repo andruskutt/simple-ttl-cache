@@ -157,7 +157,7 @@ class Cache:
         bisect.insort_right(self._lru, cache_entry)
 
     def _remove_expired_entries(self, time: float) -> None:
-        pos = 0
+        pos = 0  # noqa: SIM113
         for e in self._lru:
             if e.valid_until > time:
                 break
