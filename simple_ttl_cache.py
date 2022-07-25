@@ -121,12 +121,14 @@ class Cache:
                 return result.value
 
         with dogpile_lock:
-            result = self._cache.get(key)
-            if result:
-                self.hits += 1
-                return result.value
+            with self._lock:
+                result = self._cache.get(key)
+                if result:
+                    self.hits += 1
+                    return result.value
 
             result = producer(*args, **kwargs)
+
             with self._lock:
                 self._set_value(key, result, self._valid_until(now, ttl))
                 self.misses += 1
