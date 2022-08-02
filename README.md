@@ -7,12 +7,10 @@ Usual get, put and evict methods.
 Using decorator:
 
 ```python
-from simple_ttl_cache import Cache, ttl_cache
-
-_cache = Cache()
+from simple_ttl_cache import ttl_cache
 
 
-@ttl_cache(cache=_cache)
+@ttl_cache
 def expensive_calculation(id: int) -> str
     return str(id)
 ```

@@ -26,6 +26,7 @@ setup(
     ],
     keywords='caching',
     author='Andrus Kütt',
+    author_email='andrus.kuett@gmail.com',
     url='https://github.com/andruskutt/simple-ttl-cache',
     license='MIT',
     py_modules=['simple_ttl_cache'],
