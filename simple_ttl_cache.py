@@ -59,7 +59,7 @@ class Cache:
             self._remove_expired_entries(now)
 
             result = self._cache.get(key)
-            if result:
+            if result is not None:
                 self.hits += 1
                 return result.value
 
@@ -74,7 +74,7 @@ class Cache:
             self._remove_expired_entries(now)
 
             result = self._cache.get(key)
-            if not result:
+            if result is None:
                 self._set_value(key, value, self._valid_until(now, ttl))
                 return True
 
@@ -100,40 +100,6 @@ class Cache:
     def cache_info(self) -> CacheInfo:
         with self._lock:
             return CacheInfo(self.hits, self.misses, len(self._cache))
-
-    def _produce(
-            self,
-            key: Hashable,
-            dogpile_lock: threading.Lock,
-            producer: F,
-            args: Tuple[Hashable, ...],
-            kwargs: Dict[str, Hashable],
-            ttl: Optional[int] = None) -> Any:
-        self._validate_key(key)
-        now = self.timer()
-
-        with self._lock:
-            self._remove_expired_entries(now)
-
-            result = self._cache.get(key)
-            if result:
-                self.hits += 1
-                return result.value
-
-        with dogpile_lock:
-            with self._lock:
-                result = self._cache.get(key)
-                if result:
-                    self.hits += 1
-                    return result.value
-
-            result = producer(*args, **kwargs)
-
-            with self._lock:
-                self._set_value(key, result, self._valid_until(now, ttl))
-                self.misses += 1
-
-        return result
 
     def _validate_key(self, key: Hashable) -> None:
         if key is None:
@@ -180,20 +146,57 @@ def _key_factory(args: Tuple[Hashable, ...], kwargs: Dict[str, Hashable]) -> Has
 def ttl_cache(
         producer: Optional[F] = None,
         *,
-        cache: Optional[Cache] = None,
         ttl: Optional[int] = None,
         key_factory: Callable[[Tuple[Hashable, ...], Dict[str, Hashable]], Hashable] = _key_factory) -> F:
     if producer is None:
-        return functools.partial(ttl_cache, cache=cache, ttl=ttl, key_factory=key_factory)
+        return functools.partial(ttl_cache, ttl=ttl, key_factory=key_factory)
 
-    if cache is None:
-        raise ValueError('Cache is missing')
-
-    dogpile_lock = threading.Lock()
+    cache = Cache(default_ttl=ttl if ttl is not None else _DEFAULT_TTL)
+    dogpile_lock: Dict[Hashable, threading.Event] = {}
 
     @functools.wraps(producer)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         key = key_factory(args, kwargs)
-        return cache._produce(key, dogpile_lock, producer, args, kwargs, ttl)
+
+        cache._validate_key(key)
+        produce_in_progress = True
+        now = cache.timer()
+
+        with cache._lock:
+            cache._remove_expired_entries(now)
+
+            result = cache._cache.get(key)
+            if result is not None:
+                cache.hits += 1
+                return result.value
+
+            producer_event = dogpile_lock.get(key)
+            if producer_event is None:
+                dogpile_lock[key] = producer_event = threading.Event()
+                produce_in_progress = False
+
+        if not produce_in_progress:
+            result = producer(*args, **kwargs)
+
+            with cache._lock:
+                cache._set_value(key, result, cache._valid_until(now, ttl))
+                cache.misses += 1
+
+                del dogpile_lock[key]
+                producer_event.set()
+        else:
+            producer_event.wait()
+
+            with cache._lock:
+                result = cache._cache.get(key)
+                if result is not None:
+                    cache.hits += 1
+                    return result.value
+
+        return result
+
+    wrapper.cache_info = cache.cache_info
+    wrapper.cache_clear = cache.cache_clear
+    wrapper.evict = cache.evict
 
     return cast(F, wrapper)

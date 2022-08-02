@@ -93,26 +93,35 @@ def test_cache_ttl():
 
 
 def test_ttl_cache_decorator():
-    cache = Cache()
-
-    @ttl_cache(cache=cache)
+    @ttl_cache
     def expensive_calculation(some_id: int) -> int:
         return some_id + 42
 
     assert expensive_calculation(0) == 42
-    stats = cache.cache_info()
+    stats = expensive_calculation.cache_info()
     assert stats.hits == 0
     assert stats.misses == 1
 
     assert expensive_calculation(0) == 42
-    stats = cache.cache_info()
+    stats = expensive_calculation.cache_info()
     assert stats.hits == 1
     assert stats.misses == 1
 
-    assert expensive_calculation(1) == 43
-    stats = cache.cache_info()
+    expensive_calculation.evict(0)
+    assert expensive_calculation(0) == 42
+    stats = expensive_calculation.cache_info()
     assert stats.hits == 1
     assert stats.misses == 2
+
+    assert expensive_calculation(1) == 43
+    stats = expensive_calculation.cache_info()
+    assert stats.hits == 1
+    assert stats.misses == 3
+
+    expensive_calculation.cache_clear()
+    stats = expensive_calculation.cache_info()
+    assert stats.hits == 0
+    assert stats.misses == 0
 
 
 def test_cache_key_factory():
@@ -121,11 +130,3 @@ def test_cache_key_factory():
     assert len(key) == 3
     assert key[0] == 1
     assert key[2] == ('a', 'b')
-
-
-def test_cache_decorator_invalid():
-    def dummy(p: str) -> str:
-        return p
-
-    with pytest.raises(ValueError, match='Cache is missing'):
-        ttl_cache(cache=None)(dummy)
