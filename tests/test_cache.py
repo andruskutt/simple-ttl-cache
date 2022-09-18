@@ -14,15 +14,12 @@ def test_cache():
     key = 'string'
     value = {'a': 1, 'b': '2', 'c': True, 'd': [1, '2', True]}
 
-    assert cache.put(key, value) is True
+    cache.put(key, value)
     assert cache.get(key) == value
 
-    assert cache.put(key, value) is False
-
     changed_value = copy.copy(value)
-    value['a'] = 2
+    changed_value['a'] = 2
 
-    cache.cache_clear()
     cache.put(key, changed_value)
     assert cache.get(key) == changed_value
 
@@ -36,7 +33,7 @@ def test_cache_evict():
     key = 'string'
     value = 'value'
 
-    assert cache.put(key, value) is True
+    cache.put(key, value)
     assert cache.get(key) == value
 
     cache.evict(key)
@@ -122,6 +119,22 @@ def test_ttl_cache_decorator():
     stats = expensive_calculation.cache_info()
     assert stats.hits == 0
     assert stats.misses == 0
+
+
+def test_ttl_cache_decorator_with_key_factory():
+    @ttl_cache(key_factory=lambda args, kwargs: args)
+    def expensive_calculation(some_id: int) -> int:
+        return some_id + 42
+
+    assert expensive_calculation(0) == 42
+    stats = expensive_calculation.cache_info()
+    assert stats.hits == 0
+    assert stats.misses == 1
+
+    assert expensive_calculation(0) == 42
+    stats = expensive_calculation.cache_info()
+    assert stats.hits == 1
+    assert stats.misses == 1
 
 
 def test_cache_key_factory():

@@ -65,7 +65,7 @@ class Cache:
 
             self.misses += 1
 
-    def put(self, key: Hashable, value: Any, ttl: Optional[int] = None) -> bool:
+    def put(self, key: Hashable, value: Any, ttl: Optional[int] = None) -> None:
         self._validate_key(key)
         self._validate_value(value)
         now = self.timer()
@@ -73,12 +73,11 @@ class Cache:
         with self._lock:
             self._remove_expired_entries(now)
 
-            result = self._cache.get(key)
-            if result is None:
-                self._set_value(key, value, self._valid_until(now, ttl))
-                return True
+            cache_entry = self._cache.get(key)
+            if cache_entry is not None:
+                self._lru.remove(cache_entry)
 
-        return False
+            self._set_value(key, value, self._valid_until(now, ttl))
 
     def evict(self, key: Hashable) -> None:
         self._validate_key(key)
