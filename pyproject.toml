@@ -1,0 +1,35 @@
+[project]
+name = "simple_ttl_cache"
+version = "0.0.1"
+authors = [
+    {name = "Andrus Kütt", email = "andrus.kuett@gmail.com"},
+]
+description = "TTL cache"
+readme = "README.md"
+requires-python = ">=3.7"
+keywords = ["caching"]
+license = {file = "LICENSE"}
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+[project.urls]
+Repository = "https://github.com/andruskutt/simple-ttl-cache.git"
+
+[tool.setuptools]
+py-modules = ["simple_ttl_cache"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
