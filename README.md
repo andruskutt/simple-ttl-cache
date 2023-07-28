@@ -11,7 +11,7 @@ from simple_ttl_cache import ttl_cache
 
 
 @ttl_cache
-def expensive_calculation(id: int) -> str
+def expensive_calculation(id: int) -> str:
     return str(id)
 ```
 
